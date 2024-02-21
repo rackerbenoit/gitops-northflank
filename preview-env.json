@@ -1,0 +1,123 @@
+{
+  "apiVersion": "v1",
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "steps": [
+        {
+          "kind": "Addon",
+          "spec": {
+            "tlsEnabled": true,
+            "billing": {
+              "replicas": 1,
+              "storage": 4096,
+              "storageClass": "ssd",
+              "deploymentPlan": "nf-compute-50"
+            },
+            "typeSpecificSettings": {},
+            "type": "redis",
+            "name": "${args.previewId}-redis",
+            "version": "latest",
+            "externalAccessEnabled": false,
+            "ipPolicies": [],
+            "pitrEnabled": false
+          },
+          "ref": "redis"
+        },
+        {
+          "kind": "SecretGroup",
+          "spec": {
+            "secretType": "environment-arguments",
+            "priority": 10,
+            "secrets": {
+              "variables": {},
+              "files": {}
+            },
+            "addonDependencies": [
+              {
+                "addonId": "${refs.redis.id}",
+                "keys": [
+                  {
+                    "keyName": "REDIS_MASTER_URL",
+                    "aliases": [
+                      "CONNECTION_STRING"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "name": "${args.previewId}-secrets",
+            "restrictions": {
+              "restricted": true,
+              "tags": [
+                "${args.previewId}"
+              ],
+              "nfObjects": []
+            }
+          }
+        },
+        {
+          "kind": "BuildSource",
+          "spec": {
+            "type": "service",
+            "id": "preview-builder",
+            "branch": "${refs.git-trigger.branch}",
+            "sha": "${refs.git-trigger.sha}",
+            "defaults": {
+              "branch": "master"
+            },
+            "reuseExistingBuilds": true,
+            "buildOverrides": {
+              "buildArguments": {}
+            }
+          },
+          "ref": "build",
+          "condition": "success"
+        },
+        {
+          "kind": "DeploymentService",
+          "spec": {
+            "deployment": {
+              "instances": 1,
+              "storage": {
+                "ephemeralStorage": {
+                  "storageSize": 1024
+                },
+                "shmSize": 64
+              },
+              "docker": {
+                "configType": "default"
+              },
+              "internal": {
+                "id": "preview-builder",
+                "branch": "${refs.build.branch}",
+                "buildId": "${refs.build.id}"
+              }
+            },
+            "runtimeEnvironment": {},
+            "runtimeFiles": {},
+            "billing": {
+              "deploymentPlan": "nf-compute-50"
+            },
+            "name": "${args.previewId}-web",
+            "ports": [
+              {
+                "internalPort": 3000,
+                "public": true,
+                "protocol": "HTTP",
+                "name": "p01",
+                "domains": [],
+                "security": {
+                  "policies": [],
+                  "credentials": []
+                },
+                "disableNfDomain": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

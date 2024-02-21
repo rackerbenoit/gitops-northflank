@@ -1,0 +1,77 @@
+{
+  "apiVersion": "v1",
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "steps": [
+        {
+          "kind": "Workflow",
+          "spec": {
+            "type": "parallel",
+            "steps": [
+              {
+                "kind": "Build",
+                "spec": {
+                  "id": "prod-builder",
+                  "type": "service",
+                  "branch": "master",
+                  "buildOverrides": {
+                    "buildArguments": {}
+                  },
+                  "reuseExistingBuilds": true
+                },
+                "condition": "success",
+                "ref": "build"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Release",
+          "spec": {
+            "type": "build",
+            "origin": {
+              "id": "prod-builder",
+              "branch": "master",
+              "build": "${refs.build.id}"
+            },
+            "target": {
+              "id": "prod-migrations",
+              "type": "job"
+            }
+          }
+        },
+        {
+          "kind": "JobRun",
+          "spec": {
+            "jobId": "prod-migrations",
+            "deployment": {
+              "docker": {
+                "configType": "customCommand",
+                "customCommand": "yarn migrate"
+              }
+            }
+          },
+          "condition": "success"
+        },
+        {
+          "kind": "Release",
+          "spec": {
+            "type": "build",
+            "origin": {
+              "id": "prod-builder",
+              "branch": "master",
+              "build": "${refs.build.id}"
+            },
+            "target": {
+              "id": "prod-web",
+              "type": "service"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$schema": "https://api.northflank.com/v1/schemas/release-flow"
+}

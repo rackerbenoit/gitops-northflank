@@ -1,0 +1,208 @@
+{
+  "apiVersion": "v1",
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "steps": [
+        {
+          "kind": "Addon",
+          "spec": {
+            "tlsEnabled": false,
+            "billing": {
+              "replicas": 1,
+              "storage": 8192,
+              "storageClass": "ssd",
+              "deploymentPlan": "nf-compute-50"
+            },
+            "typeSpecificSettings": {},
+            "type": "redis",
+            "name": "redis",
+            "version": "latest",
+            "externalAccessEnabled": false,
+            "ipPolicies": [],
+            "pitrEnabled": false
+          },
+          "ref": "db"
+        },
+        {
+          "kind": "Workflow",
+          "spec": {
+            "type": "parallel",
+            "steps": [
+              {
+                "kind": "BuildService",
+                "spec": {
+                  "buildArguments": {},
+                  "buildFiles": {},
+                  "billing": {
+                    "buildPlan": "nf-compute-400-16"
+                  },
+                  "name": "prod-builder",
+                  "vcsData": {
+                    "projectType": "github",
+                    "projectUrl": "https://github.com/northflank-civo/webapp-with-redis"
+                  },
+                  "buildConfiguration": {
+                    "prRestrictions": [],
+                    "branchRestrictions": []
+                  },
+                  "buildSettings": {
+                    "dockerfile": {
+                      "buildEngine": "kaniko",
+                      "useCache": false,
+                      "dockerWorkDir": "/",
+                      "dockerFilePath": "/Dockerfile"
+                    }
+                  },
+                  "disabledCI": false
+                },
+                "ref": "prod-builder"
+              },
+              {
+                "kind": "BuildService",
+                "spec": {
+                  "buildArguments": {},
+                  "buildFiles": {},
+                  "billing": {
+                    "buildPlan": "nf-compute-400-16"
+                  },
+                  "name": "preview-builder",
+                  "vcsData": {
+                    "projectType": "github",
+                    "projectUrl": "https://github.com/northflank-civo/webapp-with-redis"
+                  },
+                  "buildConfiguration": {
+                    "prRestrictions": [],
+                    "branchRestrictions": []
+                  },
+                  "buildSettings": {
+                    "dockerfile": {
+                      "buildEngine": "kaniko",
+                      "useCache": false,
+                      "dockerWorkDir": "/",
+                      "dockerFilePath": "/Dockerfile"
+                    }
+                  },
+                  "disabledCI": false
+                },
+                "ref": "preview-builder"
+              },
+              {
+                "kind": "DeploymentService",
+                "spec": {
+                  "deployment": {
+                    "instances": 2,
+                    "docker": {
+                      "configType": "default"
+                    },
+                    "releaseFlowControlled": true
+                  },
+                  "runtimeEnvironment": {},
+                  "runtimeFiles": {},
+                  "billing": {
+                    "deploymentPlan": "nf-compute-50"
+                  },
+                  "name": "prod-web",
+                  "ports": [
+                    {
+                      "internalPort": 3000,
+                      "public": true,
+                      "protocol": "HTTP",
+                      "name": "p01",
+                      "domains": [],
+                      "security": {
+                        "policies": [],
+                        "credentials": []
+                      },
+                      "disableNfDomain": false
+                    }
+                  ]
+                },
+                "ref": "prod-web"
+              },
+              {
+                "kind": "ManualJob",
+                "spec": {
+                  "runOnSourceChange": "never",
+                  "backoffLimit": 0,
+                  "activeDeadlineSeconds": 600,
+                  "runtimeEnvironment": {},
+                  "runtimeFiles": {},
+                  "billing": {
+                    "deploymentPlan": "nf-compute-50"
+                  },
+                  "deployment": {
+                    "docker": {
+                      "configType": "customCommand",
+                      "customCommand": "yarn migrate"
+                    },
+                    "releaseFlowControlled": true
+                  },
+                  "name": "prod-migrations",
+                  "disabledCI": false,
+                  "buildConfiguration": {
+                    "pathIgnoreRules": [],
+                    "isAllowList": false,
+                    "ciIgnoreFlagsEnabled": false
+                  },
+                  "buildArguments": {}
+                },
+                "ref": "prod-migrations"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "SecretGroup",
+          "spec": {
+            "secretType": "environment-arguments",
+            "priority": 10,
+            "secrets": {
+              "variables": {},
+              "files": {}
+            },
+            "name": "prod-secrets",
+            "addonDependencies": [
+              {
+                "addonId": "redis",
+                "keys": [
+                  {
+                    "keyName": "REDIS_MASTER_URL",
+                    "aliases": [
+                      "CONNECTION_STRING"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "restrictions": {
+              "restricted": true,
+              "nfObjects": [
+                {
+                  "id": "${refs.prod-migrations.id}",
+                  "type": "job"
+                },
+                {
+                  "id": "${refs.prod-web.id}",
+                  "type": "service"
+                }
+              ],
+              "tags": []
+            }
+          },
+          "ref": "prod-secrets"
+        }
+      ]
+    }
+  },
+  "name": "civo-production",
+  "description": "",
+  "project": {
+    "spec": {
+      "name": "Civo Workshop",
+      "description": ""
+    }
+  },
+  "$schema": "https://api.northflank.com/v1/schemas/template"
+}

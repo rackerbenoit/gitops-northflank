@@ -201,6 +201,7 @@
   "project": {
     "spec": {
       "name": "Civo Workshop",
+      "clusterId": "civo-seminar",
       "description": ""
     }
   },

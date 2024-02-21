@@ -41,7 +41,8 @@
                   "name": "prod-builder",
                   "vcsData": {
                     "projectType": "github",
-                    "projectUrl": "https://github.com/northflank-civo/webapp-with-redis"
+                    "projectUrl": "https://github.com/rackerbenoit/webapp-with-redis",
+                    "vcsLinkId": "65d6286751db64227fc3c449"
                   },
                   "buildConfiguration": {
                     "prRestrictions": [],
@@ -70,7 +71,8 @@
                   "name": "preview-builder",
                   "vcsData": {
                     "projectType": "github",
-                    "projectUrl": "https://github.com/northflank-civo/webapp-with-redis"
+                    "projectUrl": "https://github.com/rackerbenoit/webapp-with-redis",
+                    "vcsLinkId": "65d6286751db64227fc3c449"
                   },
                   "buildConfiguration": {
                     "prRestrictions": [],
@@ -202,7 +204,10 @@
     "spec": {
       "name": "Civo Workshop",
       "clusterId": "civo-seminar",
-      "description": ""
+      "description": "",
+      "networking": {
+        "allowedIngressProjects": []
+      }
     }
   },
   "$schema": "https://api.northflank.com/v1/schemas/template"
